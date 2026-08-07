@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Guessing Game</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .game-container {
+            max-width: 1600px;
+            width: 100%;
+            height: 95vh;
+            display: grid;
+            grid-template-columns: 220px 1fr 280px;
+            gap: 15px;
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .avatar-selection {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .avatar-option {
+            font-size: 2em;
+            padding: 10px;
+            border: 3px solid #ddd;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .avatar-option:hover {
+            transform: scale(1.1);
+        }
+
+        .avatar-option.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .player-list {
+            list-style: none;
+        }
+
+        .player-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .player-item.drawing {
+            border-left-color: #4caf50;
+            background: #e8f5e9;
+        }
+
+        .player-avatar {
+            font-size: 1.3em;
+            margin-right: 8px;
+        }
+
+        .player-info {
+            flex: 1;
+        }
+
+        .player-name {
+            font-weight: bold;
+            color: #333;
+            font-size: 0.9em;
+        }
+
+        .player-score {
+            color: #667eea;
+            font-size: 0.85em;
+        }
+
+        .canvas-area {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .game-info {
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .timer {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 5px 0;
+        }
+
+        .timer.warning {
+            color: #ff5722;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .word-display {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+            letter-spacing: 8px;
+            margin: 8px 0;
+        }
+
+        .round-info {
+            font-size: 1em;
+            color: #666;
+        }
+
+        .drawing-tools {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tool-btn {
+            padding: 8px 14px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .tool-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        #color-picker {
+            width: 50px;
+            height: 35px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #brush-size {
+            width: 100px;
+        }
+
+        canvas {
+            border: 3px solid #ddd;
+            border-radius: 10px;
+            cursor: crosshair;
+            background: white;
+            width: 100%;
+            height: 100%;
+            max-height: calc(95vh - 220px);
+        }
+
+        .chat-container {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            max-height: 95vh;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .message {
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            background: white;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+            font-size: 0.9em;
+        }
+
+        .message.system {
+            background: #e3f2fd;
+            border-left-color: #2196f3;
+            font-style: italic;
+        }
+
+        .message.correct {
+            background: #e8f5e9;
+            border-left-color: #4caf50;
+            font-weight: bold;
+        }
+
+        .message-author {
+            font-weight: bold;
+            color: #667eea;
+            margin-right: 5px;
+        }
+
+        .chat-input-area {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-input-area input {
+            flex: 1;
+            margin: 0;
+            font-size: 14px;
+            padding: 10px;
+        }
+
+        .chat-input-area button {
+            width: auto;
+            padding: 10px 18px;
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .lobby-controls {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+        }
+
+        .difficulty-selector {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .difficulty-btn {
+            flex: 1;
+            padding: 10px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .difficulty-btn.selected {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .room-code {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .room-code-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .room-code-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+            letter-spacing: 3px;
+        }
+
+        .results-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .results-box {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .results-word {
+            font-size: 2.5em;
+            color: #667eea;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        .results-list {
+            text-align: left;
+            margin: 20px 0;
+        }
+
+        .result-item {
+            padding: 15px;
+            background: #f8f9fa;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .next-round-text {
+            color: #666;
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+
+        @media (max-width: 1200px) {
+            .game-container {
+                grid-template-columns: 180px 1fr 240px;
+                gap: 10px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .game-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+                height: auto;
+            }
+            
+            .sidebar, .chat-container {
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="join-screen" class="container">
+        <h1>Word Guessing Game</h1>
+        
+        <div class="input-group">
+            <label>Your Nickname</label>
+            <input type="text" id="nickname" placeholder="Enter your name" maxlength="20">
+        </div>
+
+        <div class="input-group">
+            <label>Choose Your Avatar</label>
+            <div class="avatar-selection" id="avatar-selection"></div>
+        </div>
+
+        <button id="create-room-btn">Create New Room</button>
+        
+        <div class="input-group" style="margin-top: 30px;">
+            <label>Or Join Existing Room</label>
+            <input type="text" id="room-code-input" placeholder="Enter room code" maxlength="6">
+        </div>
+        
+        <button id="join-room-btn">Join Room</button>
+    </div>
+
+    <div id="lobby-screen" class="container hidden">
+        <h1>Game Lobby</h1>
+        
+        <div class="room-code">
+            <div class="room-code-label">Room Code</div>
+            <div class="room-code-value" id="lobby-room-code"></div>
+        </div>
+
+        <div class="input-group">
+            <label>Players in Room</label>
+            <ul id="lobby-players" class="player-list"></ul>
+        </div>
+
+        <div class="lobby-controls">
+            <label>Difficulty</label>
+            <div class="difficulty-selector">
+                <button class="difficulty-btn" data-difficulty="easy">Easy</button>
+                <button class="difficulty-btn selected" data-difficulty="medium">Medium</button>
+                <button class="difficulty-btn" data-difficulty="hard">Hard</button>
+            </div>
+            <button id="start-game-btn" style="margin-top: 20px;" disabled>Start Game (Need 2+ Players)</button>
+        </div>
+    </div>
+
+    <div id="game-screen" class="game-container hidden">
+        <div class="sidebar">
+            <h2 style="margin-bottom: 15px; color: #667eea; font-size: 1.3em;">Players</h2>
+            <ul id="players-list" class="player-list"></ul>
+        </div>
+
+        <div class="canvas-area">
+            <div class="game-info">
+                <div class="timer" id="timer">60</div>
+                <div class="round-info">
+                    <span id="drawer-name">Waiting...</span> is drawing
+                </div>
+                <div class="word-display" id="word-hint">_ _ _ _</div>
+                <div style="color: #666; margin-top: 5px; font-size: 0.9em;">
+                    Round <span id="round-number">1</span> / <span id="total-rounds">4</span>
+                </div>
+            </div>
+
+            <div class="drawing-tools" id="drawing-tools" style="display: none;">
+                <button class="tool-btn active" data-tool="pen">✏️ Pen</button>
+                <button class="tool-btn" data-tool="fill">🪣 Fill</button>
+                <button class="tool-btn" data-tool="line">📏 Line</button>
+                <button class="tool-btn" data-tool="rectangle">▭ Rectangle</button>
+                <button class="tool-btn" data-tool="circle">⭕ Circle</button>
+                <button class="tool-btn" data-tool="eraser">🧹 Eraser</button>
+                <input type="color" id="color-picker" value="#000000" title="Color">
+                <input type="range" id="brush-size" min="1" max="30" value="3" title="Brush Size">
+                <span style="padding: 8px; background: white; border-radius: 5px; font-size: 12px;">Size: <span id="size-display">3</span></span>
+                <button class="tool-btn" id="clear-btn">🗑️ Clear</button>
+            </div>
+
+            <canvas id="canvas"></canvas>
+        </div>
+
+        <div class="chat-container">
+            <h2 style="margin-bottom: 12px; color: #667eea; font-size: 1.3em;">Chat</h2>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Type your guess...">
+                <button id="send-chat-btn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="results-overlay" class="results-overlay hidden">
+        <div class="results-box">
+            <h2 style="color: #667eea; font-size: 2em;">Round Over!</h2>
+            <div class="results-word">The word was: <span id="results-word"></span></div>
+            <div class="results-list" id="results-list"></div>
+            <div class="next-round-text">Next round starting in <span id="countdown">5</span>s...</div>
+        </div>
+    </div>
+
+    <div id="game-over-overlay" class="results-overlay hidden">
+        <div class="results-box">
+            <h2 style="color: #667eea; font-size: 3em;">🎉 Game Over! 🎉</h2>
+            <div style="font-size: 2em; margin: 30px 0; color: #4caf50;">
+                Winner: <span id="winner-name"></span>
+            </div>
+            <div style="font-size: 1.5em; color: #667eea; margin-bottom: 20px;">Final Scores:</div>
+            <div class="results-list" id="final-scores-list"></div>
+            <button onclick="location.reload()" style="margin-top: 30px; padding: 15px 40px; font-size: 1.2em;">
+                Play Again
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let selectedAvatar = null;
+        let currentRoom = null;
+        let isDrawer = false;
+        let isHost = false;
+        let myNickname = null;
+        let playerAvatars = {};
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let currentColor = '#000000';
+        let brushSize = 3;
+        let startX, startY;
+        let isShape = false;
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width - 30;
+            canvas.height = rect.height - 200;
+            clearCanvas();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        const avatars = {{ avatars | tojson }};
+        const avatarSelection = document.getElementById('avatar-selection');
+        let avatarIndex = 0;
+        for (let i = 0; i < Math.min(30, avatars.length); i++) {
+            const div = document.createElement('div');
+            div.className = 'avatar-option';
+            div.textContent = avatars[i];
+            div.onclick = () => selectAvatar(avatars[i], div);
+            avatarSelection.appendChild(div);
+        }
+
+        function selectAvatar(avatar, element) {
+            document.querySelectorAll('.avatar-option').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedAvatar = avatar;
+        }
+
+        document.getElementById('create-room-btn').onclick = () => {
+            const nickname = document.getElementById('nickname').value.trim();
+            if (!nickname) {
+                alert('Please enter a nickname');
+                return;
+            }
+            if (!selectedAvatar) {
+                alert('Please select an avatar');
+                return;
+            }
+            myNickname = nickname;
+            socket.emit('create_room', { nickname, avatar: selectedAvatar });
+        };
+
+        document.getElementById('join-room-btn').onclick = () => {
+            const nickname = document.getElementById('nickname').value.trim();
+            const roomCode = document.getElementById('room-code-input').value.trim().toUpperCase();
+            if (!nickname || !roomCode) {
+                alert('Please enter nickname and room code');
+                return;
+            }
+            if (!selectedAvatar) {
+                alert('Please select an avatar');
+                return;
+            }
+            myNickname = nickname;
+            socket.emit('join_room', { nickname, avatar: selectedAvatar, room_code: roomCode });
+        };
+
+        socket.on('room_created', (data) => {
+            currentRoom = data.room_code;
+            isHost = true;
+            showLobby(data.room_code);
+            playerAvatars[data.nickname] = data.avatar;
+        });
+
+        socket.on('room_joined', (data) => {
+            currentRoom = data.room_code;
+            isHost = data.host === myNickname;
+            playerAvatars = data.avatars;
+            showLobby(data.room_code);
+            updateLobbyPlayers(data.players);
+        });
+
+        socket.on('player_joined', (data) => {
+            playerAvatars = data.avatars;
+            updateLobbyPlayers(data.players);
+            addSystemMessage(`${data.nickname} joined the room`);
+        });
+
+        socket.on('player_left', (data) => {
+            updateLobbyPlayers(data.players);
+            updatePlayerScores(data.scores);
+            addSystemMessage(`${data.nickname} left the room`);
+        });
+
+        socket.on('difficulty_changed', (data) => {
+            document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.difficulty === data.difficulty);
+            });
+        });
+
+        socket.on('game_started', (data) => {
+            playerAvatars = data.avatars;
+            showGameScreen();
+            resizeCanvas();
+        });
+
+        socket.on('new_round', (data) => {
+            document.getElementById('results-overlay').classList.add('hidden');
+            document.getElementById('game-over-overlay').classList.add('hidden');
+            document.getElementById('drawer-name').textContent = data.drawer;
+            document.getElementById('round-number').textContent = data.round;
+            document.getElementById('total-rounds').textContent = data.total_rounds || 4;
+            
+            isDrawer = data.drawer === myNickname;
+            document.getElementById('drawing-tools').style.display = isDrawer ? 'flex' : 'none';
+            canvas.style.cursor = isDrawer ? 'crosshair' : 'default';
+            
+            if (isDrawer) {
+                document.getElementById('word-hint').textContent = data.word;
+                addSystemMessage(`You are drawing: ${data.word}`);
+            }
+        });
+
+        socket.on('word_hint', (data) => {
+            if (!isDrawer) {
+                document.getElementById('word-hint').textContent = data.hint;
+            }
+        });
+
+        socket.on('timer_update', (data) => {
+            const timerEl = document.getElementById('timer');
+            timerEl.textContent = data.time;
+            if (data.time <= 10) {
+                timerEl.classList.add('warning');
+            } else {
+                timerEl.classList.remove('warning');
+            }
+        });
+
+        socket.on('draw', (data) => {
+            drawLine(data.x0, data.y0, data.x1, data.y1, data.color, data.size, data.tool);
+        });
+
+        socket.on('shape', (data) => {
+            if (data.type === 'line') {
+                drawLineShape(data.x0, data.y0, data.x1, data.y1, data.color, data.size);
+            } else if (data.type === 'rectangle') {
+                drawRectangle(data.x0, data.y0, data.x1, data.y1, data.color, data.size);
+            } else if (data.type === 'circle') {
+                drawCircle(data.x0, data.y0, data.x1, data.y1, data.color, data.size);
+            }
+        });
+
+        socket.on('fill', (data) => {
+            fillArea(data.x, data.y, data.color);
+        });
+
+        socket.on('clear_canvas', () => {
+            clearCanvas();
+        });
+
+        socket.on('chat_message', (data) => {
+            addChatMessage(data.nickname, data.message, data.avatar);
+        });
+
+        socket.on('correct_guess', (data) => {
+            addSystemMessage(`${data.nickname} guessed correctly! +${data.points} points`, 'correct');
+            updatePlayerScores(data.scores);
+        });
+
+        socket.on('round_end', (data) => {
+            showResults(data.word, data.guessed_players, data.scores);
+            updatePlayerScores(data.scores);
+        });
+
+        socket.on('error', (data) => {
+            alert(data.message);
+        });
+
+        socket.on('game_over', (data) => {
+            document.getElementById('results-overlay').classList.add('hidden');
+            document.getElementById('game-over-overlay').classList.remove('hidden');
+            document.getElementById('winner-name').textContent = data.winner;
+            
+            const finalScores = document.getElementById('final-scores-list');
+            finalScores.innerHTML = Object.entries(data.scores)
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, score], index) => `
+                    <div class="result-item">
+                        <span>${index + 1}. ${playerAvatars[name]} ${name}</span>
+                        <span style="color: #667eea; font-weight: bold;">${score} points</span>
+                    </div>
+                `).join('');
+        });
+
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.onclick = () => {
+                if (isHost) {
+                    socket.emit('set_difficulty', { difficulty: btn.dataset.difficulty });
+                }
+            };
+        });
+
+        document.getElementById('start-game-btn').onclick = () => {
+            socket.emit('start_game');
+        };
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            canvas.dispatchEvent(new MouseEvent('mouseup', {}));
+        });
+
+        document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentTool = btn.dataset.tool;
+            };
+        });
+
+        document.getElementById('color-picker').onchange = (e) => {
+            currentColor = e.target.value;
+        };
+
+        document.getElementById('brush-size').oninput = (e) => {
+            brushSize = e.target.value;
+            document.getElementById('size-display').textContent = brushSize;
+        };
+
+        document.getElementById('clear-btn').onclick = () => {
+            if (isDrawer) {
+                clearCanvas();
+                socket.emit('clear_canvas');
+            }
+        };
+
+        let lastX = 0, lastY = 0;
+
+        function startDrawing(e) {
+            if (!isDrawer) return;
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+            lastX = startX;
+            lastY = startY;
+            
+            if (currentTool === 'fill') {
+                fillArea(startX, startY, currentColor);
+                socket.emit('fill', { x: startX, y: startY, color: currentColor });
+                isDrawing = false;
+            } else if (['line', 'rectangle', 'circle'].includes(currentTool)) {
+                isShape = true;
+            }
+        }
+
+        function draw(e) {
+            if (!isDrawing || !isDrawer) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (currentTool === 'pen' || currentTool === 'eraser') {
+                const color = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
+                drawLine(lastX, lastY, x, y, color, brushSize, currentTool);
+                
+                socket.emit('draw', {
+                    x0: lastX,
+                    y0: lastY,
+                    x1: x,
+                    y1: y,
+                    color: color,
+                    size: brushSize,
+                    tool: currentTool
+                });
+                
+                lastX = x;
+                lastY = y;
+            }
+        }
+
+        function stopDrawing(e) {
+            if (!isDrawing || !isDrawer) return;
+            
+            if (isShape) {
+                const rect = canvas.getBoundingClientRect();
+                const endX = e.clientX - rect.left;
+                const endY = e.clientY - rect.top;
+                
+                if (currentTool === 'line') {
+                    drawLineShape(startX, startY, endX, endY, currentColor, brushSize);
+                    socket.emit('shape', { type: 'line', x0: startX, y0: startY, x1: endX, y1: endY, color: currentColor, size: brushSize });
+                } else if (currentTool === 'rectangle') {
+                    drawRectangle(startX, startY, endX, endY, currentColor, brushSize);
+                    socket.emit('shape', { type: 'rectangle', x0: startX, y0: startY, x1: endX, y1: endY, color: currentColor, size: brushSize });
+                } else if (currentTool === 'circle') {
+                    drawCircle(startX, startY, endX, endY, currentColor, brushSize);
+                    socket.emit('shape', { type: 'circle', x0: startX, y0: startY, x1: endX, y1: endY, color: currentColor, size: brushSize });
+                }
+                isShape = false;
+            }
+            
+            isDrawing = false;
+        }
+
+        function drawLine(x0, y0, x1, y1, color, size, tool) {
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+        }
+
+        function drawLineShape(x0, y0, x1, y1, color, size) {
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+        }
+
+        function drawRectangle(x0, y0, x1, y1, color, size) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+        }
+
+        function drawCircle(x0, y0, x1, y1, color, size) {
+            const radius = Math.sqrt(Math.pow(x1 - x0, 2) + Math.pow(y1 - y0, 2));
+            ctx.beginPath();
+            ctx.arc(x0, y0, radius, 0, 2 * Math.PI);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.stroke();
+        }
+
+        function fillArea(x, y, fillColor) {
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixelStack = [[Math.floor(x), Math.floor(y)]];
+            const startPos = (Math.floor(y) * canvas.width + Math.floor(x)) * 4;
+            const startR = imageData.data[startPos];
+            const startG = imageData.data[startPos + 1];
+            const startB = imageData.data[startPos + 2];
+            
+            const fillRGB = hexToRgb(fillColor);
+            
+            if (startR === fillRGB.r && startG === fillRGB.g && startB === fillRGB.b) {
+                return;
+            }
+            
+            while (pixelStack.length) {
+                const newPos = pixelStack.pop();
+                const x = newPos[0];
+                const y = newPos[1];
+                
+                let pixelPos = (y * canvas.width + x) * 4;
+                
+                while (y >= 0 && matchStartColor(imageData, pixelPos, startR, startG, startB)) {
+                    pixelPos -= canvas.width * 4;
+                    y--;
+                }
+                
+                pixelPos += canvas.width * 4;
+                y++;
+                
+                let reachLeft = false;
+                let reachRight = false;
+                
+                while (y < canvas.height && matchStartColor(imageData, pixelPos, startR, startG, startB)) {
+                    colorPixel(imageData, pixelPos, fillRGB);
+                    
+                    if (x > 0) {
+                        if (matchStartColor(imageData, pixelPos - 4, startR, startG, startB)) {
+                            if (!reachLeft) {
+                                pixelStack.push([x - 1, y]);
+                                reachLeft = true;
+                            }
+                        } else if (reachLeft) {
+                            reachLeft = false;
+                        }
+                    }
+                    
+                    if (x < canvas.width - 1) {
+                        if (matchStartColor(imageData, pixelPos + 4, startR, startG, startB)) {
+                            if (!reachRight) {
+                                pixelStack.push([x + 1, y]);
+                                reachRight = true;
+                            }
+                        } else if (reachRight) {
+                            reachRight = false;
+                        }
+                    }
+                    
+                    pixelPos += canvas.width * 4;
+                    y++;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        function matchStartColor(imageData, pos, r, g, b) {
+            return imageData.data[pos] === r && imageData.data[pos + 1] === g && imageData.data[pos + 2] === b;
+        }
+
+        function colorPixel(imageData, pos, color) {
+            imageData.data[pos] = color.r;
+            imageData.data[pos + 1] = color.g;
+            imageData.data[pos + 2] = color.b;
+            imageData.data[pos + 3] = 255;
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        document.getElementById('send-chat-btn').onclick = sendMessage;
+        document.getElementById('chat-input').onkeypress = (e) => {
+            if (e.key === 'Enter') sendMessage();
+        };
+
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (message) {
+                socket.emit('chat_message', { message });
+                input.value = '';
+            }
+        }
+
+        function addChatMessage(nickname, message, avatar) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message';
+            msgDiv.innerHTML = `<span class="message-author">${avatar} ${nickname}:</span> ${message}`;
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function addSystemMessage(message, type = 'system') {
+            const messagesDiv = document.getElementById('chat-messages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${type}`;
+            msgDiv.textContent = message;
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function showResults(word, guessedPlayers, scores) {
+            document.getElementById('results-word').textContent = word;
+            document.getElementById('results-overlay').classList.remove('hidden');
+            
+            const resultsList = document.getElementById('results-list');
+            if (guessedPlayers.length === 0) {
+                resultsList.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No one guessed correctly!</div>';
+            } else {
+                resultsList.innerHTML = '<h3 style="color: #667eea; margin-bottom: 15px;">Players who guessed:</h3>' +
+                    guessedPlayers.map((player, index) => `
+                        <div class="result-item">
+                            <span>${playerAvatars[player]} ${player}</span>
+                            <span style="color: #4caf50; font-weight: bold;">#${index + 1}</span>
+                        </div>
+                    `).join('');
+            }
+            
+            let count = 5;
+            const countdownEl = document.getElementById('countdown');
+            const interval = setInterval(() => {
+                count--;
+                countdownEl.textContent = count;
+                if (count <= 0) {
+                    clearInterval(interval);
+                }
+            }, 1000);
+        }
+
+        function showLobby(roomCode) {
+            document.getElementById('join-screen').classList.add('hidden');
+            document.getElementById('lobby-screen').classList.remove('hidden');
+            document.getElementById('lobby-room-code').textContent = roomCode;
+        }
+
+        function showGameScreen() {
+            document.getElementById('lobby-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+        }
+
+        function updateLobbyPlayers(players) {
+            const list = document.getElementById('lobby-players');
+            list.innerHTML = players.map(p => `
+                <li class="player-item">
+                    <div class="player-avatar">${playerAvatars[p] || '😀'}</div>
+                    <div class="player-name">${p}</div>
+                </li>
+            `).join('');
+            
+            const startBtn = document.getElementById('start-game-btn');
+            if (isHost) {
+                startBtn.disabled = players.length < 2;
+                startBtn.textContent = players.length < 2 ? 'Start Game (Need 2+ Players)' : 'Start Game';
+            } else {
+                startBtn.style.display = 'none';
+            }
+        }
+
+        function updatePlayerScores(scores) {
+            const list = document.getElementById('players-list');
+            const drawer = document.getElementById('drawer-name').textContent;
+            
+            list.innerHTML = Object.entries(scores)
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, score]) => `
+                    <li class="player-item ${name === drawer ? 'drawing' : ''}">
+                        <div class="player-avatar">${playerAvatars[name] || '😀'}</div>
+                        <div class="player-info">
+                            <div class="player-name">${name}</div>
+                            <div class="player-score">${score} points</div>
+                        </div>
+                    </li>
+                `).join('');
+        }
+
+        setTimeout(resizeCanvas, 100);
+    </script>
+</body>
+</html>

@@ -20,7 +20,7 @@ spec:
       containers:
       - name: word-guessing-game
 
-        image: 171379772639.dkr.ecr.us-east-1.amazonaws.com/word-guessing-game:v1
+        image: <ecr url>
 
         ports:
         - containerPort: 5000

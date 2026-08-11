@@ -13,7 +13,7 @@ module "eks" {
   cluster_endpoint_private_access = true
 
   cluster_endpoint_public_access_cidrs = [
-    "110.38.253.60/32"
+    "your ip address/32"
   ]
   eks_managed_node_groups = {
     default = {

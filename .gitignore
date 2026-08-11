@@ -1,13 +1,44 @@
+# =========================
+# Python
+# =========================
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 
+# =========================
+# Virtual Environments
+# =========================
 venv/
-.env
+.venv/
+env/
 
+# =========================
+# Environment Variables
+# =========================
+.env
+.env.*
+
+# =========================
+# IDEs & Editors
+# =========================
 .idea/
 .vscode/
 
+# =========================
+# OS Generated Files
+# =========================
 .DS_Store
 
+# =========================
+# Logs
+# =========================
 *.log
+
+# =========================
+# Terraform
+# =========================
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfplan

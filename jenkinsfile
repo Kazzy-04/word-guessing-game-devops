@@ -23,8 +23,18 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                bat 'docker build -t word-guessing-game:jenkins .'
+                bat 'docker build -t word-guessing-game:%BUILD_NUMBER% .'
+            }
+
+        }
+        stage('Tag Docker Image'){
+            steps{
+                bat 'docker tag word-guessing-game:%BUILD_NUMBER%  171379772639.dkr.ecr.us-east-1.amazonaws.com/word-guessing-game:%BUILD_NUMBER%'
             }
         }
+        stage('Push to ECR'){
+            steps{
+                    bat 'docker push 171379772639.dkr.ecr.us-east-1.amazonaws.com/word-guessing-game:%BUILD_NUMBER%'
+            }
     }
 }

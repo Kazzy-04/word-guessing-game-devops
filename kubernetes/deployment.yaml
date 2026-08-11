@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: word-guessing-game
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: word-guessing-game
+
+  template:
+    metadata:
+      labels:
+        app: word-guessing-game
+
+    spec:
+      containers:
+      - name: word-guessing-game
+
+        image: 171379772639.dkr.ecr.us-east-1.amazonaws.com/word-guessing-game:v1
+
+        ports:
+        - containerPort: 5000
+
+        env:
+        - name: SECRET_KEY
+          value: "production-secret"
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+
+          initialDelaySeconds: 20
+          periodSeconds: 10
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+
+          initialDelaySeconds: 10
+          periodSeconds: 5
